@@ -3,38 +3,47 @@ import time
 import shutil
 import zipfile
 from mockup import Mockup
-downloads = "/Users/amitshachar/Downloads"
-documents = "/Users/amitshachar/Documents"
-etsy = f"{documents}/etsy"
+from svg_converter import png2svg
+
+downloads = "C:\\Users\\Amit Shachar\\Downloads"
+documents = "C:\\Users\\Amit Shachar\\Documents"
+etsy = f"{documents}\\etsy"
+import threading
 
 
 def create_dir():
     project_name = input("Enter Project Name: ")
-    project_path = f"{etsy}/{project_name}"
+    project_path = f"{etsy}\\{project_name}"
     if not os.path.isdir(project_path):
-        os.mkdir(project_path)
-        os.mkdir(f"{project_path}/Stock")
-        os.mkdir(f"{project_path}/Mockup")
-        os.mkdir(f"{project_path}/Product")
+        os.makedirs(project_path)
+        os.makedirs(f"{project_path}\\Stock")
+        os.makedirs(f"{project_path}\\Mockup")
+        os.makedirs(f"{project_path}\\Product")
     monitor_directory(downloads, project_path)
 
 
 def sort_files(file, project_path):
     if "DALL" in file:
-        shutil.copy(f"{downloads}/{file}", f"{project_path}/Stock/{file}")
+        shutil.copy(f"{downloads}\\{file}", f"{project_path}\\Stock\\{file}")
+        create_pruduct(project_path, file)
+        # threading.Thread(target=create_pruduct, args=(project_path, file)).start()
+
+
+def create_pruduct(project_path, file):
+    print("starting to generate product")
+    png2svg(input_file=f"{project_path}\\Stock\\{file}", output_path=f"{project_path}\\Product").file_to_svg()
+    find_matching_files(f"{project_path}\\Product\\")
+    num_files = len(os.listdir(f"{project_path}\\product\\"))
+    if num_files > 11:
+        print("starting generating mockups")
+        Mockup("mockupa", f"{project_path}\\product", output_path=f"{project_path}\\Mockup\\").create_mockup()
 
     # elif "Bundle" in file:
     #     shutil.copy(f"{downloads}/{file}/1.jpg", f"{project_path}/Mockup/4.jpg")
     #     shutil.copy(f"{downloads}/{file}/2.jpg", f"{project_path}/Mockup/3.jpg")
     #     shutil.copy(f"{downloads}/{file}/3.jpg", f"{project_path}/Mockup/2.jpg")
     #     shutil.copy(f"{downloads}/{file}/3.jpg", f"{project_path}/Mockup/1.jpg")
-    elif "__" in file:
-        shutil.copy(f"{downloads}/{file}", f"{project_path}/Product/{file.replace('_', '')}")
-        find_matching_files(f"{project_path}/Product/")
-        num_files = len(os.listdir(f"{project_path}/product/"))
-        if num_files > 11:
-            print("starting generating mockups")
-            Mockup("mockupa",f"{project_path}/product", output_path=f"{project_path}/Mockup/").create_mockup()
+    #     shutil.copy(f"{downloads}\\{file}", f"{project_path}\\Product\\{file.replace('_', '')}")
 
 
 def find_matching_files(directory):

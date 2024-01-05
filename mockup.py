@@ -66,19 +66,18 @@ class Mockup:
             pillow_image = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
             number = 0
 
-            for index, contour in enumerate(contours):
+            for contour in contours:
                 x, y, w, h = cv2.boundingRect(contour)
                 if w > 10 < 15 and h > 10 < 15:
                     images = self.get_files(self.poduct_path, is_png=True)
-                    if mockup_index != 3:
+                    if mockup[-5] != '1':
                         png_image = Image.open(images[mockup_index])
-                        png_image = png_image.resize(new_size)
                     else:
                         png_image = Image.open(images[number])
-                        png_image = png_image.resize(new_size)
                         number += 1
 
 
+                    png_image = png_image.resize(new_size)
                     center_x = x + w // 2
                     center_y = y + h // 2
 
@@ -97,6 +96,6 @@ class Mockup:
 
 
 if __name__ == "__main__":
-    Mockup(mockup_path="mockupa", product_path="images").create_mockup()
+    Mockup(mockup_path="mockupa", product_path=r"C:\Users\Amit Shachar\Documents\etsy\Mosaic Flowers\Product", output_path=rf"C:\Users\Amit Shachar\Documents\etsy\Mosaic Flowers\Mockup").create_mockup()
 # Optionally, convert the Pillow image back to OpenCV format for further processing
 # output_image_cv = cv2.cvtColor(np.array(pillow_image), cv2.COLOR_RGB2BGR)
