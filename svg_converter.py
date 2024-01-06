@@ -1,9 +1,12 @@
 import sys
+import time
+from datetime import datetime
 from PIL import Image
 from potrace import Bitmap, POTRACE_TURNPOLICY_MINORITY
 import os
 from svglib.svglib import svg2rlg
 from reportlab.graphics import renderPM
+import threading
 
 
 class png2svg:
@@ -11,33 +14,53 @@ class png2svg:
         self.input_file = input_file
         self.output_path = output_path
 
-    def create_png(self, input_vector_file):
+    @staticmethod
+    def find_latest_file(path, extension):
+        list_of_files = [os.path.join(path, file) for file in os.listdir(path) if file.endswith(extension)]
+        return max(list_of_files, key=os.path.getctime) if list_of_files else None
+
+
+
+
+    def create_png_and_svg(self, input_vector_file):
         filename = str(len(os.listdir(self.output_path)) + 1)
-        inkscape_command = (
+        base_export_path = self.output_path + "\\" + filename
+        inkscape_command_png = (
             f'inkscape {input_vector_file} '
-            f'--export-filename={self.output_path}\\{filename}.png '
+            f'--export-type=png '
             f'--export-dpi=300 '
             f'--export-width=4000 '
             f'--export-height=4000 '
             f'--export-background-opacity=0'
         )
+        os.system(inkscape_command_png)
 
-        # Execute the Inkscape command using os.system
-        os.system(inkscape_command)
+        if exported_svg := self.find_latest_file("outputs", ".png"):
+            try:
+                os.rename(exported_svg, f'{base_export_path}.png')
+            except FileExistsError:
+                filename = str(len(os.listdir(self.output_path)) + 1)
+                base_export_path = self.output_path + "\\" + filename
+        print("generated pnh")
 
-        inkscape_command = (
+
+        inkscape_command_svg = (
             f'inkscape {input_vector_file} '
-            f'--export-filename={self.output_path}\\{filename}.svg '
+            f'--export-type=svg '
             f'--export-dpi=300 '
             f'--export-width=4000 '
             f'--export-height=4000 '
             f'--export-background-opacity=0'
         )
+        os.system(inkscape_command_svg)
 
-        # Execute the Inkscape command using os.system
-        os.system(inkscape_command)
 
-    def file_to_svg(self):
+        if exported_svg := self.find_latest_file("outputs", ".svg"):
+            os.rename(exported_svg, f'{base_export_path}.svg')
+        print("generated svg")
+
+    def create_temp_svg(self):
+        tmp_svg = f"{str(datetime.now()).replace(':', '.').replace(' ', '')}.svg"
         try:
             image = Image.open(self.input_file)
         except IOError:
@@ -62,7 +85,7 @@ class png2svg:
             opttolerance=0.2,
         )
 
-        with open("outputs\\tmp.svg", "w") as fp:
+        with open(f"outputs\\{tmp_svg}", "w") as fp:
             fp.write(
                 '''<svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="4000" height="4000" viewBox="0 0 4000 4000">'''
             )
@@ -83,11 +106,18 @@ class png2svg:
                 parts.append("z")
             fp.write(f'<path stroke="none" fill="black" fill-rule="evenodd" d="{"".join(parts)}"/>')
             fp.write("</svg>")
-        self.create_png("outputs\\tmp.svg")
+            fp.close()
+        print("Generated temp svg")
+        return tmp_svg
 
 
-if __name__ == '__main__':
-    input_filename = r"C:\Users\Amit Shachar\Documents\etsy\Mosaic Flowers\Stock\DALL·E 2024-01-03 20.48.33 - A thick lined, monoline image of a beautiful rose mosaic, depicted in black on a white background, suitable for laser cutting. The design features int.png"
+    def file_to_svg(self):
+        tmp_svg = self.create_temp_svg()
+        self.create_png_and_svg(f"outputs\\{tmp_svg}")
+
     output_filename = r"C:\Users\Amit Shachar\Documents\etsy\Mosaic Flowers\Stock\output.svg"
 
-    png2svg("outputs\\input.png", "outputs").file_to_svg()
+if __name__ == '__main__':
+    input_filename = r"C:\Users\Amit Shachar\Documents\etsy\test11\Stock\DALL·E 2024-01-06 14.40.22 - A hand-drawn, thick monoline illustration of butterflies flying towards the moon, suitable for laser cutting. The design features a variety of butterf.png"
+
+    png2svg(input_filename, "outputs").file_to_svg()

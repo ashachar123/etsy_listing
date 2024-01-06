@@ -25,8 +25,8 @@ def create_dir():
 def sort_files(file, project_path):
     if "DALL" in file:
         shutil.copy(f"{downloads}\\{file}", f"{project_path}\\Stock\\{file}")
-        create_pruduct(project_path, file)
-        # threading.Thread(target=create_pruduct, args=(project_path, file)).start()
+        # create_pruduct(project_path, file)
+        threading.Thread(target=create_pruduct, args=(project_path, file)).start()
 
 
 def create_pruduct(project_path, file):
