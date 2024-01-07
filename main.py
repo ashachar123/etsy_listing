@@ -4,39 +4,40 @@ import shutil
 import zipfile
 from mockup import Mockup
 from svg_converter import png2svg
-
-downloads = "C:\\Users\\Amit Shachar\\Downloads"
-documents = "C:\\Users\\Amit Shachar\\Documents"
-etsy = f"{documents}\\etsy"
 import threading
+
+
+downloads = "/Users/amitshachar/Downloads"
+documents = "/Users/amitshachar/Documents"
+etsy = f"{documents}/etsy/"
 
 
 def create_dir():
     project_name = input("Enter Project Name: ")
-    project_path = f"{etsy}\\{project_name}"
+    project_path = f"{etsy}/{project_name}"
     if not os.path.isdir(project_path):
         os.makedirs(project_path)
-        os.makedirs(f"{project_path}\\Stock")
-        os.makedirs(f"{project_path}\\Mockup")
-        os.makedirs(f"{project_path}\\Product")
+        os.makedirs(f"{project_path}/Stock")
+        os.makedirs(f"{project_path}/Mockup")
+        os.makedirs(f"{project_path}/Product")
     monitor_directory(downloads, project_path)
 
 
 def sort_files(file, project_path):
     if "DALL" in file:
-        shutil.copy(f"{downloads}\\{file}", f"{project_path}\\Stock\\{file}")
+        shutil.copy(f"{downloads}/{file}", f"{project_path}/Stock/{file}")
         # create_pruduct(project_path, file)
         threading.Thread(target=create_pruduct, args=(project_path, file)).start()
 
 
 def create_pruduct(project_path, file):
     print("starting to generate product")
-    png2svg(input_file=f"{project_path}\\Stock\\{file}", output_path=f"{project_path}\\Product").file_to_svg()
-    find_matching_files(f"{project_path}\\Product\\")
-    num_files = len(os.listdir(f"{project_path}\\product\\"))
+    png2svg(input_file=f"{project_path}/Stock/{file}", output_path=f"{project_path}/Product").file_to_svg()
+    find_matching_files(f"{project_path}/Product/")
+    num_files = len(os.listdir(f"{project_path}/product/"))
     if num_files > 11:
         print("starting generating mockups")
-        Mockup("mockupa", f"{project_path}\\product", output_path=f"{project_path}\\Mockup\\").create_mockup()
+        Mockup("mockupa", f"{project_path}/product", output_path=f"{project_path}/Mockup/Ï").create_mockup()
 
     # elif "Bundle" in file:
     #     shutil.copy(f"{downloads}/{file}/1.jpg", f"{project_path}/Mockup/4.jpg")
@@ -72,21 +73,51 @@ def zip_files(directory, file_pairs):
 def get_files_in_directory(directory):
     return set(os.listdir(directory))
 
+def set_project_name(directory):
+    filename = 1
+    while True:
+        if is_dir(f"{directory}/{str(len(os.listdir(directory)) + filename )}"):
+            filename +=1
+        else:
+            return str(len(os.listdir(directory)) + filename )
 
-def monitor_directory(directory, project_path):
-    print(f"Monitoring {directory} for new files...")
-    observed_files = get_files_in_directory(directory)
+
+def create_dirs():
+    project_name = set_project_name(etsy)
+    project_path = f"{etsy}/{project_name}"
+    if not os.path.isdir(project_path):
+        os.makedirs(project_path)
+        os.makedirs(f"{project_path}/Stock")
+        os.makedirs(f"{project_path}/Mockup")
+        os.makedirs(f"{project_path}/Product")
+    return project_path
+
+def is_dir(dir):
+    if os.path.isdir(dir):
+        return True
+    else:
+        return False
+
+def monitor_directory():
+    project_path = create_dirs()
+    print(f"Monitoring {downloads} for new files...")
+    observed_files = get_files_in_directory(downloads)
+    counter = 0
     try:
         while True:
             time.sleep(1)
-            current_files = get_files_in_directory(directory)
+            current_files = get_files_in_directory(downloads)
             new_files = current_files - observed_files
             if new_files and list(new_files)[0].split(".")[-1] != "download":
+                counter += 1
                 print(f"New file(s) detected: {new_files}")
                 sort_files(list(new_files)[0], project_path)
                 observed_files = current_files
+                if counter == 4:
+                    counter = 0
+                    project_path = create_dirs()
     except KeyboardInterrupt:
         print("Stopping directory monitoring.")
 
 
-create_dir()
+monitor_directory()

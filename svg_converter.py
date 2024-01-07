@@ -23,8 +23,6 @@ class png2svg:
 
 
     def create_png_and_svg(self, input_vector_file):
-        filename = str(len(os.listdir(self.output_path)) + 1)
-        base_export_path = self.output_path + "\\" + filename
         inkscape_command_png = (
             f'inkscape {input_vector_file} '
             f'--export-type=png '
@@ -36,12 +34,11 @@ class png2svg:
         os.system(inkscape_command_png)
 
         if exported_svg := self.find_latest_file("outputs", ".png"):
-            try:
-                os.rename(exported_svg, f'{base_export_path}.png')
-            except FileExistsError:
-                filename = str(len(os.listdir(self.output_path)) + 1)
-                base_export_path = self.output_path + "\\" + filename
-        print("generated pnh")
+            filename = str(len(os.listdir(self.output_path)) + 1)
+            base_export_path = self.output_path + "/" + filename
+            os.rename(exported_svg, f'{base_export_path}.png')
+
+        print(f"generated png at {base_export_path}")
 
 
         inkscape_command_svg = (
@@ -57,7 +54,7 @@ class png2svg:
 
         if exported_svg := self.find_latest_file("outputs", ".svg"):
             os.rename(exported_svg, f'{base_export_path}.svg')
-        print("generated svg")
+        print(f"generated svg at {base_export_path}")
 
     def create_temp_svg(self):
         tmp_svg = f"{str(datetime.now()).replace(':', '.').replace(' ', '')}.svg"
@@ -85,7 +82,7 @@ class png2svg:
             opttolerance=0.2,
         )
 
-        with open(f"outputs\\{tmp_svg}", "w") as fp:
+        with open(f"outputs/{tmp_svg}", "w") as fp:
             fp.write(
                 '''<svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="4000" height="4000" viewBox="0 0 4000 4000">'''
             )
@@ -113,7 +110,7 @@ class png2svg:
 
     def file_to_svg(self):
         tmp_svg = self.create_temp_svg()
-        self.create_png_and_svg(f"outputs\\{tmp_svg}")
+        self.create_png_and_svg(f"outputs/{tmp_svg}")
 
     output_filename = r"C:\Users\Amit Shachar\Documents\etsy\Mosaic Flowers\Stock\output.svg"
 
