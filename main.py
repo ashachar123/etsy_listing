@@ -25,9 +25,10 @@ def create_dir():
 
 def sort_files(file, project_path):
     if "DALL" in file:
+        time.sleep(2)
         shutil.copy(f"{downloads}/{file}", f"{project_path}/Stock/{file}")
         # create_pruduct(project_path, file)
-        threading.Thread(target=create_pruduct, args=(project_path, file)).start()
+        threading.Thread(target=create_pruduct, args=(project_path.replace("//", "/"), file)).start()
 
 
 def create_pruduct(project_path, file):
@@ -37,7 +38,7 @@ def create_pruduct(project_path, file):
     num_files = len(os.listdir(f"{project_path}/product/"))
     if num_files > 11:
         print("starting generating mockups")
-        Mockup("mockupa", f"{project_path}/product", output_path=f"{project_path}/Mockup/Ï").create_mockup()
+        Mockup("mockupa", f"{project_path}/product", output_path=f"{project_path}/Mockup/").create_mockup()
 
     # elif "Bundle" in file:
     #     shutil.copy(f"{downloads}/{file}/1.jpg", f"{project_path}/Mockup/4.jpg")

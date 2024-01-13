@@ -1,7 +1,7 @@
 import sys
 import time
 from datetime import datetime
-from PIL import Image
+from PIL import Image, ImageFile
 from potrace import Bitmap, POTRACE_TURNPOLICY_MINORITY
 import os
 from svglib.svglib import svg2rlg
@@ -13,6 +13,7 @@ class png2svg:
     def __init__(self, input_file, output_path):
         self.input_file = input_file
         self.output_path = output_path
+        ImageFile.LOAD_TRUNCATED_IMAGES = True
 
     @staticmethod
     def find_latest_file(path, extension):
@@ -38,7 +39,7 @@ class png2svg:
             base_export_path = self.output_path + "/" + filename
             os.rename(exported_svg, f'{base_export_path}.png')
 
-        print(f"generated png at {base_export_path}")
+            print(f"generated png at {base_export_path}")
 
 
         inkscape_command_svg = (
@@ -70,7 +71,12 @@ class png2svg:
 
         # Create a white background image with the same size
         background = Image.new('RGB', (4000, 4000), (255, 255, 255))
-        background.paste(image, (0, 0), image)
+        if image.mode == 'RGBA':
+            # Use the alpha channel of the image as a mask
+            background.paste(image, (0, 0), image.split()[3])
+        else:
+            # No transparency, so no mask needed
+            background.paste(image, (0, 0))
 
         bm = Bitmap(background, blacklevel=0.5)
         # bm.invert()
@@ -112,9 +118,9 @@ class png2svg:
         tmp_svg = self.create_temp_svg()
         self.create_png_and_svg(f"outputs/{tmp_svg}")
 
-    output_filename = r"C:\Users\Amit Shachar\Documents\etsy\Mosaic Flowers\Stock\output.svg"
+    # output_filename = r"C:\Users\Amit Shachar\Documents\etsy\Mosaic Flowers\Stock\output.svg"
 
 if __name__ == '__main__':
-    input_filename = r"C:\Users\Amit Shachar\Documents\etsy\test11\Stock\DALL·E 2024-01-06 14.40.22 - A hand-drawn, thick monoline illustration of butterflies flying towards the moon, suitable for laser cutting. The design features a variety of butterf.png"
+    input_filename = r"/Users/amitshachar/Documents/etsy/43/Stock/DALL0_1.png"
 
     png2svg(input_filename, "outputs").file_to_svg()
