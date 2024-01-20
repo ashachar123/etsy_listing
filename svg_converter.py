@@ -4,6 +4,12 @@ from datetime import datetime
 from PIL import Image, ImageFile
 from potrace import Bitmap, POTRACE_TURNPOLICY_MINORITY
 import os
+from scipy.interpolate import splprep, splev
+import numpy as np
+from svgpathtools import svg2paths, wsvg, Path, Line
+import re
+from shapely.geometry import LineString, Point
+import scipy
 from svglib.svglib import svg2rlg
 from reportlab.graphics import renderPM
 import threading
@@ -14,14 +20,49 @@ class png2svg:
         self.input_file = input_file
         self.output_path = output_path
         ImageFile.LOAD_TRUNCATED_IMAGES = True
+    def smooth_path(self, points, smoothing_factor=3):
+        # Ensure each element in points is a pair (x, y)
+        points_array = np.array([(point.x, point.y) for point in points])
+
+        # Perform spline interpolation
+        tck, u = splprep([points_array[:, 0], points_array[:, 1]], s=smoothing_factor)
+        u_new = np.linspace(u.min(), u.max(), 1000)  # Adjust the number of points
+        x_new, y_new = splev(u_new, tck)
+        return list(zip(x_new, y_new))
+
+    @staticmethod
+    def parse_svg_path_part(part):
+        # Extract the command letter and the rest of the string
+        command = part[0]
+        coords_string = part[1:]
+
+        # Split the coordinates string into pairs using regular expressions
+        coords_pairs = re.findall(r'(\d+\.\d+)', coords_string)
+
+        # Create points from the extracted pairs
+        points = []
+        for i in range(0, len(coords_pairs), 2):
+            x, y = float(coords_pairs[i]), float(coords_pairs[i + 1])
+            points.append(Point(x, y))
+
+        return points
 
     @staticmethod
     def find_latest_file(path, extension):
         list_of_files = [os.path.join(path, file) for file in os.listdir(path) if file.endswith(extension)]
         return max(list_of_files, key=os.path.getctime) if list_of_files else None
+    def simplify_path(self, parts, tolerance=1.0):
+        simplified_parts = []
+        for part in parts:
+            # Parse the SVG path part to get points
+            points = self.parse_svg_path_part(part)
+            line = LineString([(point.x, point.y) for point in points])
+            simplified_line = line.simplify(tolerance)
 
-
-
+            # Construct the simplified path part
+            simplified_part = f"{part[0]}" + " ".join(f"{x:.2f},{y:.2f}" for x, y in simplified_line.coords)
+            simplified_parts.append(simplified_part)
+        return simplified_parts
 
     def create_png_and_svg(self, input_vector_file):
         inkscape_command_png = (
@@ -41,7 +82,6 @@ class png2svg:
 
             print(f"generated png at {base_export_path}")
 
-
         inkscape_command_svg = (
             f'inkscape {input_vector_file} '
             f'--export-type=svg '
@@ -50,6 +90,7 @@ class png2svg:
             f'--export-height=4000 '
             f'--export-background-opacity=0'
         )
+
         os.system(inkscape_command_svg)
 
 
@@ -58,7 +99,8 @@ class png2svg:
         print(f"generated svg at {base_export_path}")
 
     def create_temp_svg(self):
-        tmp_svg = f"{str(datetime.now()).replace(':', '.').replace(' ', '')}.svg"
+        tmp_svg = f"{str(datetime.now()).replace(':', '.').replace(' ', '')}tmp.svg"
+        final_svg = f"{str(datetime.now()).replace(':', '.').replace(' ', '')}final.svg"
         try:
             image = Image.open(self.input_file)
         except IOError:
@@ -81,11 +123,11 @@ class png2svg:
         bm = Bitmap(background, blacklevel=0.5)
         # bm.invert()
         plist = bm.trace(
-            turdsize=2,
+            turdsize=10,
             turnpolicy=POTRACE_TURNPOLICY_MINORITY,
-            alphamax=1,
-            opticurve=False,
-            opttolerance=0.2,
+            alphamax=0.01,
+            opticurve=True,
+            opttolerance=8,
         )
 
         with open(f"outputs/{tmp_svg}", "w") as fp:
@@ -95,23 +137,39 @@ class png2svg:
             parts = []
             for curve in plist:
                 fs = curve.start_point
-                parts.append(f"M{fs.x},{fs.y}")
+                segment_parts = [f"M{fs.x},{fs.y}"]
                 for segment in curve.segments:
                     if segment.is_corner:
                         a = segment.c
                         b = segment.end_point
-                        parts.append(f"L{a.x},{a.y}L{b.x},{b.y}")
+                        segment_parts.append(f"L{a.x},{a.y}L{b.x},{b.y}")
                     else:
                         a = segment.c1
                         b = segment.c2
                         c = segment.end_point
-                        parts.append(f"C{a.x},{a.y} {b.x},{b.y} {c.x},{c.y}")
-                parts.append("z")
-            fp.write(f'<path stroke="none" fill="black" fill-rule="evenodd" d="{"".join(parts)}"/>')
-            fp.write("</svg>")
-            fp.close()
-        print("Generated temp svg")
-        return tmp_svg
+                        segment_parts.append(f"C{a.x},{a.y} {b.x},{b.y} {c.x},{c.y}")
+                segment_parts.append("z")
+                parts.append(" ".join(segment_parts))
+
+            # Simplify the paths
+            tolerance = 2# Adjust this value to get the desired simplification
+            simplified_parts = self.simplify_path(parts, tolerance)
+            smoothed_parts = []
+            for part in simplified_parts:
+                points = self.parse_svg_path_part(part)
+                smoothed_points = self.smooth_path(points)
+                smoothed_part = f"M" + " ".join(f"{x:.2f},{y:.2f}" for x, y in smoothed_points)
+                smoothed_parts.append(smoothed_part)
+            with open(f"outputs/{tmp_svg}", "w") as fp:
+                fp.write(
+                    '''<svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="4000" height="4000" viewBox="0 0 4000 4000">'''
+                )
+                fp.write(f'<path stroke="none" fill="black" fill-rule="evenodd" d="{"".join(simplified_parts)}"/>')
+                fp.write("</svg>")
+                fp.close()
+
+            print("Generated temp svg")
+            return tmp_svg
 
 
     def file_to_svg(self):
