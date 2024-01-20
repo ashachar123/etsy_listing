@@ -6,7 +6,7 @@ import requests
 from PIL import Image
 from datetime import datetime
 
-client = OpenAI(api_key="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")
+client = OpenAI(api_key="")
 product = os.listdir("/Users/amitshachar/Documents/etsy/31/Stock")[0]
 
 
