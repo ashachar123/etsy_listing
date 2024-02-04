@@ -1,11 +1,10 @@
-from PIL import Image, ImageDraw, ImageFilter
+import shutil
+
+from PIL import Image
 import cv2
 import numpy as np
 import os
 import random
-
-
-
 
 
 class Mockup:
@@ -13,6 +12,10 @@ class Mockup:
         self.mockup_path = mockup_path
         self.poduct_path = product_path
         self.output_path = output_path
+        self.fps = 10
+        self.frames_per_image = 3 * self.fps
+        self.width = 2000
+        self.height = 2000
 
 
     def get_files(self, path, is_png=False):
@@ -65,13 +68,16 @@ class Mockup:
                     self.copy_and_paste_region(image, x, y, w + 5, h + 5)
             pillow_image = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
             number = 0
+            print(f"this is the self.poduct_path - {self.poduct_path}")
 
             for contour in contours:
                 x, y, w, h = cv2.boundingRect(contour)
                 if w > 10 < 15 and h > 10 < 15:
                     images = self.get_files(self.poduct_path, is_png=True)
                     if mockup[-5] != '1':
-                        png_image = Image.open(images[mockup_index])
+                        print(f"this is index of mockup_index {mockup_index}")
+                        print(f"this is images {images}")
+                        png_image = Image.open(images[mockup_index -1])
                     else:
                         png_image = Image.open(images[number])
                         number += 1
@@ -91,12 +97,48 @@ class Mockup:
             output_image_path = f'{self.output_path}{mockup_index}.jpg'
             pillow_image.save(output_image_path)
             # pillow_image.show()
+        self.generate_video()
         print(f"created mockups in {self.output_path}.jpg")
+
+    def generate_video(self):
+        output_video = cv2.VideoWriter(f'{self.output_path}/output_video.mp4', cv2.VideoWriter_fourcc(*'mp4v'), self.fps, (self.width, self.height))
+        image_paths = [f"{self.output_path}/{file}" for file in os.listdir(self.output_path) if ".jpg" in file]
+        transition_frames = int(self.fps)
+        for i in range(len(image_paths) - 1):
+            img1 = cv2.imread(image_paths[i])
+            img2 = cv2.imread(image_paths[i + 1])
+
+            if img1 is not None and img2 is not None:
+                # Resize images to match the video resolution
+                img1 = cv2.resize(img1, (self.width, self.height))
+                img2 = cv2.resize(img2, (self.width, self.height))
+
+                # Determine the number of frames to allocate for each image
+                frames_img1 = self.frames_per_image - transition_frames
+                frames_img2 = self.frames_per_image - frames_img1
+
+                # Add the first image with its allocated frames
+                for _ in range(frames_img1):
+                    output_video.write(img1)
+
+                # Apply crossfade transition
+                for alpha in range(0, transition_frames):
+                    blended_frame = cv2.addWeighted(img1, 1 - alpha / float(transition_frames), img2,
+                                                    alpha / float(transition_frames), 0)
+                    output_video.write(blended_frame)
+
+                # Add the second image with its allocated frames
+                for _ in range(frames_img2):
+                    output_video.write(img2)
+
+        # Release the VideoWriter
+        output_video.release()
+        os.rename(f'{self.output_path}/output_video.mp4', f'{self.output_path}/output_video_rdy.mp4')
 
 
 
 
 if __name__ == "__main__":
-    Mockup(mockup_path="mockupa", product_path=r"/Users/amitshachar/Documents/etsy/21/Product", output_path=rf"C:\Users\Amit Shachar\Documents\etsy\Mosaic Flowers\Mockup").create_mockup()
+    Mockup(mockup_path="mockupa", product_path=r"etsy/4/Product", output_path=r"etsy/4/Mockup").create_mockup()
 # Optionally, convert the Pillow image back to OpenCV format for further processing
 # output_image_cv = cv2.cvtColor(np.array(pillow_image), cv2.COLOR_RGB2BGR)

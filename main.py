@@ -1,15 +1,21 @@
 import os
 import time
+import json
 import shutil
 import zipfile
 from mockup import Mockup
 from svg_converter import png2svg
 import threading
+from etsy_actions.etsy_api import EtsyActions
 
-
-downloads = "/Users/amitshachar/Downloads"
+downloads = "stock"
 documents = "/Users/amitshachar/Documents"
-etsy = f"{documents}/etsy/"
+etsy = (f"etsy")
+
+
+def config():
+    with open("config/config.json", "r") as jsonobj:
+        return json.load(jsonobj)
 
 
 def create_dir():
@@ -24,7 +30,7 @@ def create_dir():
 
 
 def sort_files(file, project_path):
-    if "DALL" in file:
+    if "DALL" in file or ".jp" in file:
         time.sleep(2)
         shutil.copy(f"{downloads}/{file}", f"{project_path}/Stock/{file}")
         # create_pruduct(project_path, file)
@@ -32,13 +38,18 @@ def sort_files(file, project_path):
 
 
 def create_pruduct(project_path, file):
+    configs = config()
     print("starting to generate product")
     png2svg(input_file=f"{project_path}/Stock/{file}", output_path=f"{project_path}/Product").file_to_svg()
     find_matching_files(f"{project_path}/Product/")
-    num_files = len(os.listdir(f"{project_path}/product/"))
+    num_files = len(os.listdir(f"{project_path}/Product/"))
     if num_files > 11:
         print("starting generating mockups")
-        Mockup("mockupa", f"{project_path}/product", output_path=f"{project_path}/Mockup/").create_mockup()
+        time.sleep(5)
+        Mockup("mockupa", f"{project_path}/Product", output_path=f"{project_path}/Mockup/").create_mockup()
+        EtsyActions(api_key=configs.get("etsy_key"),
+                    refresh_token=configs.get("etsy_refresh_token"),
+                    shop_id=configs.get("etsy_shopid")).post_listing(project_path)
 
     # elif "Bundle" in file:
     #     shutil.copy(f"{downloads}/{file}/1.jpg", f"{project_path}/Mockup/4.jpg")
@@ -74,30 +85,41 @@ def zip_files(directory, file_pairs):
 def get_files_in_directory(directory):
     return set(os.listdir(directory))
 
+
 def set_project_name(directory):
     filename = 1
     while True:
-        if is_dir(f"{directory}/{str(len(os.listdir(directory)) + filename )}"):
-            filename +=1
+        if is_dir(f"{directory}/{str(len(os.listdir(directory)) + filename)}"):
+            filename += 1
         else:
-            return str(len(os.listdir(directory)) + filename )
+            return str(len(os.listdir(directory)) + filename)
 
 
 def create_dirs():
     project_name = set_project_name(etsy)
     project_path = f"{etsy}/{project_name}"
     if not os.path.isdir(project_path):
-        os.makedirs(project_path)
-        os.makedirs(f"{project_path}/Stock")
-        os.makedirs(f"{project_path}/Mockup")
-        os.makedirs(f"{project_path}/Product")
+        try:
+            os.makedirs(project_path)
+            os.makedirs(f"{project_path}/Stock")
+            os.makedirs(f"{project_path}/Mockup")
+            os.makedirs(f"{project_path}/Product")
+        except:
+            str(int(project_name)+1)
+            project_path = f"{etsy}/{project_name}"
+            os.makedirs(project_path)
+            os.makedirs(f"{project_path}/Stock")
+            os.makedirs(f"{project_path}/Mockup")
+            os.makedirs(f"{project_path}/Product")
     return project_path
+
 
 def is_dir(dir):
     if os.path.isdir(dir):
         return True
     else:
         return False
+
 
 def monitor_directory():
     project_path = create_dirs()
@@ -121,4 +143,5 @@ def monitor_directory():
         print("Stopping directory monitoring.")
 
 
-monitor_directory()
+if __name__ == "__main__":
+    monitor_directory()
